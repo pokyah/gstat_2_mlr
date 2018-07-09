@@ -14,7 +14,7 @@ Please review the code, provide suggestions/comments/enhancements by dropping an
 
 ## How to test ?
 The [sp](https://github.com/edzer/sp) package provides the meuse dataset which is also used as the reference dataset in the gstat manuals and documentation.
-This repo therefore also makes use of the meuse dataset
+This repo therefore also makes use of the meuse dataset. The testing code is available under `test.R`
 
 ## To-DO
 This is an early developement version that has not been extensibely tested. I have pretty much no experience with gstat. If you are familiar with this package, your contributions are more than welcome.
