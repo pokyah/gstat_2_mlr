@@ -29,7 +29,7 @@ makeRLearner.regr.gstat = function(){#https://www.rdocumentation.org/packages/gs
       makeUntypedLearnerParam(id = "lambda")
     ),
     par.vals = list(model = NULL, nmax = 0, nmin=0, omax=0, maxdist=Inf, force=FALSE, dummy=FALSE, fill.all=FALSE, fill.cross=TRUE, variance="identity", degree=0, vdist=FALSE),
-    properties = c("numerics", "factors" , "se", "weights"),
+    properties = c("numerics", "factors" , "se", "weights", "missings"),
     name = "Multivariable Geostatistical Prediction And Simulation",
     short.name = "gstat",
     note = "To make the learner work, you cannot use the standard krige interface from gstat.\n
