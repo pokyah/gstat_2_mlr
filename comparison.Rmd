@@ -1,0 +1,46 @@
+From gstat CRAN [vignette](https://cran.r-project.org/web/packages/gstat/vignettes/gstat.pdf), let's compare raw-gstat outputs with mlr-gstat outputs.
+
+## Prepare the required libraries
+```{r}
+library(gstat)
+library(sp)
+library(mlr)
+library(dplyr)
+source("gstat.R")
+```
+
+## idw
+### raw gstat
+```{r}
+data(meuse)
+coordinates(meuse) = ~x+y
+data(meuse.grid)
+coordinates(meuse.grid) = ~x+y
+zinc.idw = idw(zinc~1, meuse, meuse.grid)
+idw.raw.plot <- spplot(zinc.idw["var1.pred"], do.log = F, colorkey=TRUE,  main = "zinc inverse distance weighted interpolations")
+idw.raw.plot
+```
+
+### mlr gstat
+mlr only works with pure dataframes. neither tibbles, sp, or sf dataframes are supported. 
+```{r}
+data(meuse)
+data(meuse.grid)
+
+# imputing values to missing data
+imp.meuse = impute(meuse, classes = list(numeric = imputeMean(), factor = imputeMode()),
+  dummy.classes = "integer")$data
+imp.meuse.grid = impute(meuse.grid, classes = list(numeric = imputeMean(), factor = imputeMode()),
+  dummy.classes = "integer")$data
+
+task = makeRegrTask(id = "meuse",  data = imp.meuse, target = "zinc")
+task.idw <- dropFeatures(task = task, features = getTaskFeatureNames(task)[-c(1,2)])
+lrn.idw = makeLearner(cl = "regr.gstat", id= "mlr-idw", locations = ~x+y)
+mod.idw = train(lrn.idw, task.idw)
+newdata.pred.idw = predict(mod.idw, newdata = imp.meuse.grid)
+res.idw <- bind_cols(data.frame(meuse.grid), newdata.pred.idw$data)
+coordinates(res.idw) <- ~x+y
+idw.mlr.plot <- spplot(res.idw["response"], do.log = F, colorkey = TRUE, main = mod.idw$learner$id)
+idw.mlr.plot
+```
+
