@@ -48,4 +48,4 @@ res.vgm_log <- bind_cols(data.frame(meuse.grid), newdata.pred.vgm_log$data)
 coordinates(res.vgm_log) <- ~x+y
 spplot(res.vgm_log["response"], do.log = T, colorkey = TRUE, main = mod.vgm_log$learner$id)
 
-
+# http://rspatial.org/analysis/rst/4-interpolation.html
