@@ -9,38 +9,123 @@ library(dplyr)
 source("gstat.R")
 ```
 
+
 ## idw
-### raw gstat
+### idw - raw gstat
 ```{r}
+# loading the data
 data(meuse)
-coordinates(meuse) = ~x+y
 data(meuse.grid)
+# imputing values to missing data
+meuse = impute(meuse, classes = list(numeric = imputeMean(), factor = imputeMode()),
+  dummy.classes = "integer")$data
+meuse.grid = impute(meuse.grid, classes = list(numeric = imputeMean(), factor = imputeMode()),
+  dummy.classes = "integer")$data
+# making spatial
+coordinates(meuse) = ~x+y
 coordinates(meuse.grid) = ~x+y
+gridded(meuse.grid) = TRUE
+# interpolating
 zinc.idw = idw(zinc~1, meuse, meuse.grid)
+# mapping
 idw.raw.plot <- spplot(zinc.idw["var1.pred"], do.log = F, colorkey=TRUE,  main = "zinc inverse distance weighted interpolations")
 idw.raw.plot
 ```
 
-### mlr gstat
+### idw - mlr gstat
 mlr only works with pure dataframes. neither tibbles, sp, or sf dataframes are supported. 
 ```{r}
+# loading the data
 data(meuse)
 data(meuse.grid)
-
 # imputing values to missing data
-imp.meuse = impute(meuse, classes = list(numeric = imputeMean(), factor = imputeMode()),
+meuse = impute(meuse, classes = list(numeric = imputeMean(), factor = imputeMode()),
   dummy.classes = "integer")$data
-imp.meuse.grid = impute(meuse.grid, classes = list(numeric = imputeMean(), factor = imputeMode()),
+meuse.grid = impute(meuse.grid, classes = list(numeric = imputeMean(), factor = imputeMode()),
   dummy.classes = "integer")$data
-
-task = makeRegrTask(id = "meuse",  data = imp.meuse, target = "zinc")
+# defining the regression task
+task = makeRegrTask(id = "meuse",  data = meuse, target = "zinc")
 task.idw <- dropFeatures(task = task, features = getTaskFeatureNames(task)[-c(1,2)])
+# defining the learner
 lrn.idw = makeLearner(cl = "regr.gstat", id= "mlr-idw", locations = ~x+y)
+# training the model
 mod.idw = train(lrn.idw, task.idw)
-newdata.pred.idw = predict(mod.idw, newdata = imp.meuse.grid)
-res.idw <- bind_cols(data.frame(meuse.grid), newdata.pred.idw$data)
-coordinates(res.idw) <- ~x+y
-idw.mlr.plot <- spplot(res.idw["response"], do.log = F, colorkey = TRUE, main = mod.idw$learner$id)
+# interpolating
+newdata.pred.idw = predict(mod.idw, newdata = meuse.grid)
+mlr.idw <- bind_cols(data.frame(meuse.grid), newdata.pred.idw$data)
+# mapping
+coordinates(mlr.idw) <- ~x+y
+gridded(mlr.idw) = TRUE
+idw.mlr.plot <- spplot(mlr.idw["response"], do.log = F, colorkey = TRUE, main = mod.idw$learner$id)
 idw.mlr.plot
+```
+
+### identical predictions ? 
+```{r}
+identical(zinc.idw["var1.pred"]@data[[1]], mlr.idw["response"]@data[[1]])
+```
+
+## ordinary kriging example
+### ordinary kriging - raw gstat
+```{r}
+# loading the data
+data(meuse)
+data(meuse.grid)
+# imputing values to missing data
+meuse = impute(meuse, classes = list(numeric = imputeMean(), factor = imputeMode()),
+  dummy.classes = "integer")$data
+meuse.grid = impute(meuse.grid, classes = list(numeric = imputeMean(), factor = imputeMode()),
+  dummy.classes = "integer")$data
+# making spatial
+coordinates(meuse) = ~x+y
+coordinates(meuse.grid) = ~x+y
+gridded(meuse.grid) = TRUE
+# computing sample variogram
+lzn.vgm = variogram(log(zinc)~1, meuse)
+# manually fitting a model to the vgm with constant mean
+lzn.fit = fit.variogram(lzn.vgm, model = vgm(1, "Sph", 900, 1))
+plot(lzn.vgm, lzn.fit)
+# manually fitting a model to the vgm with a mean function
+lznr.vgm = variogram(log(zinc)~sqrt(dist), meuse)
+lznr.fit = fit.variogram(lznr.vgm, model = vgm(1, "Exp", 300, 1))
+plot(lznr.vgm, lznr.fit)
+# kriging
+lzn.kriged = krige(log(zinc)~1, meuse, meuse.grid, model = lzn.fit)
+# mapping
+lzn.kriged.plot <- spplot(lzn.kriged["var1.pred"], do.log = F, colorkey = TRUE, main = "log(zn) ordinary kriging")
+lzn.kriged.plot
+```
+
+### ordinary kriging mlr gstat
+```{r}
+# loading the data
+data(meuse)
+data(meuse.grid)
+# imputing values to missing data
+meuse = impute(meuse, classes = list(numeric = imputeMean(), factor = imputeMode()),
+  dummy.classes = "integer")$data
+meuse.grid = impute(meuse.grid, classes = list(numeric = imputeMean(), factor = imputeMode()),
+  dummy.classes = "integer")$data
+# adding a column with log zinc
+meuse <- meuse %>% dplyr::mutate(log_zinc = log(zinc))
+# defining the regression task
+task = makeRegrTask(id = "meuse",  data = meuse, target = "log_zinc")
+task.krg <- dropFeatures(task = task, features = getTaskFeatureNames(task)[-c(1,2)])
+# defining the learner
+lrn.krg = makeLearner(cl = "regr.gstat", id= "ln(zn) mlr ordinary kriging", model = list(psill=1, model="Sph", range=900, nugget=1), locations = ~x+y)
+# training the model
+mod.krg = train(lrn.krg, task.krg)
+# kriging
+newdata.pred.krg = predict(object = mod.krg, newdata = meuse.grid)
+mlr.krg <- bind_cols(data.frame(meuse.grid), newdata.pred.krg$data)
+# mapping
+coordinates(mlr.krg) <- ~x+y
+gridded(mlr.krg) = TRUE
+spplot(mlr.krg["response"], do.log = T, colorkey = TRUE, main = mod.krg$learner$id)
+```
+
+### identical predictions ? 
+```{r}
+identical(lzn.kriged["var1.pred"]@data[[1]], mlr.krg["response"]@data[[1]])
 ```
 
