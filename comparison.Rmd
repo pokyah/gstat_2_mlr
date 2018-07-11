@@ -161,9 +161,9 @@ lzn.vgm = variogram(log(zinc)~1, meuse)
 # manually fitting a model to the vgm with a mean function where sqrt dist is the explanatory var
 lzn.vgm = variogram(log(zinc)~sqrt(dist), meuse)
 lzn.fit = fit.variogram(lzn.vgm, model = vgm(1, "Exp", 300, 1))
-plot(lzn.vgm, lznr.fit)
+plot(lzn.vgm, lzn.fit)
 # kriging
-lzn.kriged = krige(log(zinc)~1, meuse, meuse.grid, model = lznr.fit)
+lzn.kriged = krige(log(zinc)~sqrt(dist), meuse, meuse.grid, model = lzn.fit)
 # mapping
 lzn.kriged.plot <- spplot(lzn.kriged["var1.pred"], do.log = F, colorkey = TRUE, main = "log(zn) kriging with external drift")
 lzn.kriged.plot
@@ -183,9 +183,12 @@ meuse.grid = impute(meuse.grid, classes = list(numeric = imputeMean(), factor = 
   dummy.classes = "integer")$data
 # adding a column with log zinc
 meuse <- meuse %>% dplyr::mutate(log_zinc = log(zinc))
+# adding a column with sqrt dist
+meuse <- meuse %>% dplyr::mutate(sqrt_dist = sqrt(dist))
+meuse.grid <- meuse.grid %>% dplyr::mutate(sqrt_dist = sqrt(dist))
 # defining the regression task
 task = makeRegrTask(id = "meuse",  data = meuse, target = "log_zinc")
-task.krg <- dropFeatures(task = task, features = getTaskFeatureNames(task)[-c(1,2,8)])
+task.krg <- dropFeatures(task = task, features = getTaskFeatureNames(task)[-c(1,2,15)])
 # defining the learner
 lrn.krg = makeLearner(cl = "regr.gstat", id= "ln(zn) mlr kriging with external drift", predict.type = "response", model = list(psill=1, model="Exp", range=300, nugget=1), locations = ~x+y) 
 # training the model
@@ -210,4 +213,8 @@ coordinates(se.mlr.krg) <- ~x+y
 gridded(se.mlr.krg) = TRUE
 se.plot  <- spplot(se.mlr.krg["se"], do.log = T, colorkey = TRUE, main = se.mod.krg$learner$id)
 se.plot 
+```
+### identical predictions ? 
+```{r}
+identical(lzn.kriged["var1.pred"]@data[[1]], mlr.krg["response"]@data[[1]])
 ```
