@@ -75,18 +75,14 @@ trainLearner.regr.gstat = function(.learner, .task, .subset, .weights = NULL, mo
 #' @export #multivariate prediction https://www.rdocumentation.org/packages/gstat/versions/1.0-2/topics/predict.gstat
 predictLearner.regr.gstat = function(.learner, .model, .newdata, ...) {
   #browser()
+  p = predict( # https://www.rdocumentation.org/packages/gstat/versions/1.0-2/topics/predict
+    object = .model$learner.model,
+    newdata = .newdata
+  )
   if (.learner$predict.type == "response") {
-    #predict(.model$learner.model, newdata = .newdata, se.fit = FALSE, ...)
-    #d =  getTaskData(.task, .subset)
-    #sp::coordinates(d) = ~x+y
-    p = predict( # https://www.rdocumentation.org/packages/gstat/versions/1.0-2/topics/predict
-      object = .model$learner.model,
-      newdata = .newdata
-    )
-    p = p[[3]]
+    p = p[["var1.pred"]]
   } else {
-    p = predict(.model$learner.model, newdata = .newdata, se.fit = TRUE, ...)
-    cbind(p$fit, p$se.fit)
+    p = as.matrix(p[3:4])
   }
 }
 
