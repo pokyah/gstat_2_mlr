@@ -1,6 +1,9 @@
 # gstat_2_mlr
 attempt to implement gstat in mlr (R)
 
+# demo
+click [here](./comparison.html)
+
 ## purpose
 This repo is dedicated to my ongoing work of implementing gstat into mlr
 * [gstat](https://github.com/edzer/gstat) : Spatial and spatio-temporal geostatistical modelling, prediction and simulation
